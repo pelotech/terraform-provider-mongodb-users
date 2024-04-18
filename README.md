@@ -62,3 +62,7 @@ In order to run the full suite of Acceptance tests, run `make testacc`.
 ```shell
 make testacc
 ```
+
+```shell
+env NIXPKGS_ALLOW_UNFREE=1 devenv --impure shell
+```

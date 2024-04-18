@@ -1,0 +1,10 @@
+version: '3.7'
+services:
+  db:
+    image: bitnami/mongodb:4.4.15
+    ports:
+      - "15432:15432"
+    environment:
+      MONGODB_PORT_NUMBER: '15432'
+      MONGODB_ROOT_USER: 'root'
+      MONGODB_ROOT_PASSWORD: 'password'
