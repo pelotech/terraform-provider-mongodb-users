@@ -13,7 +13,7 @@ provider "mongodb-users" {
 }
 
 resource "mongodb-users_user" "junky" {
-  user = "unky"
+  user = "test_user"
   db = "test"
   password = "123password"
   roles = [

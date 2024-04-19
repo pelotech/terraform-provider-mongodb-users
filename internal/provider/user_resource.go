@@ -4,6 +4,7 @@ import (
     "context"
     "time"
     "fmt"
+    "errors"
 
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
@@ -26,6 +27,7 @@ type userResource struct {
 }
 
 type userResourceModel struct {
+  Id types.String `tfsdk:"id"`
   User types.String `tfsdk:"user"`
   Password types.String `tfsdk:"password"`
   Db types.String `tfsdk:"db"`
@@ -85,6 +87,9 @@ func (r *userResource) Metadata(_ context.Context, req resource.MetadataRequest,
 func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
     resp.Schema = schema.Schema{
       Attributes: map[string]schema.Attribute{
+        "id": schema.StringAttribute{
+          Computed: true,
+        },
         "db": schema.StringAttribute{
           Required: true,
         },
@@ -154,12 +159,41 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
       return
     }
 
+    // Read back user from DB to get ID
+    user, err := r.getUserFromDb(ctx, plan.Db.ValueString(), plan.User.ValueString())
+    if err != nil {
+      resp.Diagnostics.AddError(
+          "Error reading user from MongoDb",
+          "Could not retrieve user <" + plan.User.ValueString() + "> " + err.Error())
+    }
+
     // Set state to fully populated data
+    plan.Id = types.StringValue(user.Id)
     diags = resp.State.Set(ctx, plan)
     resp.Diagnostics.Append(diags...)
     if resp.Diagnostics.HasError() {
         return
     }
+}
+
+func (r *userResource) getUserFromDb(ctx context.Context, db string, user string) (*dbUser, error) {
+  var usersInfo readResponse
+  cmd := bson.D{{Key: "usersInfo", Value: bson.M{
+      "user": user,
+      "db":   db,
+  }}}
+
+  err := r.client.Database(db).RunCommand(ctx, cmd).Decode(&usersInfo)
+  if err != nil {
+    return nil, err
+  }
+
+  users := usersInfo.Users
+  if len(users) == 0 {
+    return nil, errors.New("No users matched for db: " + db + " and user: " + user)
+  }
+
+  return &users[0], nil
 }
 
 func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -170,28 +204,13 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
     return
   }
 
-  var usersInfo readResponse
-  cmd := bson.D{{Key: "usersInfo", Value: bson.M{
-      "user": state.User.ValueString(),
-      "db":   state.Db.ValueString(),
-  }}}
-
-  err := r.client.Database(state.Db.ValueString()).RunCommand(ctx, cmd).Decode(&usersInfo)
+  user, err := r.getUserFromDb(ctx, state.Db.ValueString(), state.User.ValueString())
   if err != nil {
     resp.Diagnostics.AddError(
         "Error reading user from MongoDb",
         "Could not retrieve user <" + state.User.ValueString() + "> " + err.Error())
   }
 
-
-  users := usersInfo.Users
-  if len(users) == 0 {
-    resp.Diagnostics.AddError(
-        "Error reading user from MongoDb",
-        "Could not retrieve user <" + state.User.ValueString() + "> " + err.Error())
-  }
-
-  user := users[0]
   state.User = types.StringValue(user.User)
   state.Db = types.StringValue(user.Db)
 
