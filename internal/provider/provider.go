@@ -157,19 +157,20 @@ func (p *mongodbUsersProvider) Configure(ctx context.Context, req provider.Confi
     defer cancel()
 
     credential := options.Credential{
-      AuthMechanism: "PLAIN",
+      AuthMechanism: "SCRAM-SHA-1",
       Username: username,
       Password: password,
     }
 
-    client, err := mongo.Connect(mongoCtx, options.Client().ApplyURI("mongodb://" + host).
+    //client, err := mongo.Connect(mongoCtx, options.Client().ApplyURI("mongodb://" + host).
+    client, _ := mongo.Connect(mongoCtx, options.Client().ApplyURI("mongodb://" + host).
         SetAuth(credential))
 
-    defer func() {
-      if err = client.Disconnect(ctx); err != nil {
-        panic(err)
-      }
-    }()
+    //defer func() {
+      //if err = client.Disconnect(ctx); err != nil {
+        //panic(err)
+      //}
+    //}()
 
 
 

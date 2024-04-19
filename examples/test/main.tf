@@ -11,3 +11,15 @@ provider "mongodb-users" {
   username = "root"
   password = "password123"
 }
+
+resource "mongodb-users_user" "junky" {
+  user = "unky"
+  db = "test"
+  password = "123password"
+  roles = [
+    {
+      db = "test"
+      role = "readWrite"
+    }
+  ]
+}
