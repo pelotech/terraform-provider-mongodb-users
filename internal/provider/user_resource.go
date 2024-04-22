@@ -93,15 +93,19 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
     resp.Schema = schema.Schema{
       Attributes: map[string]schema.Attribute{
         "id": schema.StringAttribute{
+          Description: "Placeholder identifier attribute",
           Computed: true,
         },
         "db": schema.StringAttribute{
+          Description: "DB Where the user is registered",
           Required: true,
         },
         "user": schema.StringAttribute{
+          Description: "Name of user",
           Required: true,
         },
         "password": schema.StringAttribute{
+          Description: "Password of user, cannot be changed once set",
           Required: true,
           Sensitive: true,
         },
@@ -112,10 +116,12 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
               "role" : types.StringType,
             },
           },
+          Description: "Set of roles that the user has",
           Required: true,
         },
         "last_updated" :schema.StringAttribute{
           Computed: true,
+          Description: "Timestamp of the last Terraform update of the order.",
         },
       },
     }

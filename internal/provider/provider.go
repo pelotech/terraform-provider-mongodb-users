@@ -43,12 +43,15 @@ func (p *mongodbUsersProvider) Schema(ctx context.Context, req provider.SchemaRe
   resp.Schema = schema.Schema{
     Attributes: map[string]schema.Attribute{
         "host": schema.StringAttribute{
+            Description: "Host and port for MongoDB, may also be provided with MONGODB_HOST environment variable",
             Required: true,
         },
         "username": schema.StringAttribute{
+            Description: "Username for MongoDB connection, may also be provided with MONGODB_USERNAME environment variable",
             Required: true,
         },
         "password": schema.StringAttribute{
+            Description: "Password for MongoDB connection, may also be provided with MONGODB_PASSWORD environment variable",
             Required: true,
             Sensitive: true,
         },
