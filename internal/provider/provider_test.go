@@ -28,8 +28,8 @@ var testAccProtoV5ProviderFactories = map[string]func() (tfprotov5.ProviderServe
 	"mongodb-users": providerserver.NewProtocol5WithError(New("test")()),
 }
 
-func testAccPreCheck(t *testing.T) {
-	// You can add code here to run prior to any test case execution, for example assertions
-	// about the appropriate environment variables being set are common to see in a pre-check
-	// function.
-}
+//func testAccPreCheck(t *testing.T) {
+// You can add code here to run prior to any test case execution, for example assertions
+// about the appropriate environment variables being set are common to see in a pre-check
+// function.
+//}
