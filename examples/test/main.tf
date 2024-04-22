@@ -15,7 +15,19 @@ provider "mongodb-users" {
 resource "mongodb-users_user" "junky" {
   user = "test_user"
   db = "test"
-  password = "123password"
+  password = "abc123"
+  roles = [
+    {
+      db = "t2"
+      role = "readWrite"
+    }
+  ]
+}
+
+resource "mongodb-users_user" "junky2" {
+  user = "junky2junk"
+  db = "test"
+  password = "abc123"
   roles = [
     {
       db = "test"

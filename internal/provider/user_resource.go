@@ -5,17 +5,20 @@ import (
     "time"
     "fmt"
     "errors"
+    "strings"
 
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
     "github.com/hashicorp/terraform-plugin-framework/resource"
     "github.com/hashicorp/terraform-plugin-framework/resource/schema"
     "github.com/hashicorp/terraform-plugin-framework/types"
+    "github.com/hashicorp/terraform-plugin-framework/path"
 )
 
 var (
     _ resource.Resource = &userResource{}
     _ resource.ResourceWithConfigure = &userResource{}
+    _ resource.ResourceWithImportState = &userResource{}
 )
 
 func NewUserResource() resource.Resource {
@@ -32,6 +35,7 @@ type userResourceModel struct {
   Password types.String `tfsdk:"password"`
   Db types.String `tfsdk:"db"`
   Roles []userRoleModel `tfsdk:"roles"`
+  LastUpdated types.String `tfsdk:"last_updated"`
 }
 
 type userRoleModel struct {
@@ -113,6 +117,9 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
             },
           },
         },
+        "last_updated" :schema.StringAttribute{
+          Computed: true,
+        },
       },
     }
 }
@@ -169,6 +176,8 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 
     // Set state to fully populated data
     plan.Id = types.StringValue(user.Id)
+    plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
+
     diags = resp.State.Set(ctx, plan)
     resp.Diagnostics.Append(diags...)
     if resp.Diagnostics.HasError() {
@@ -176,7 +185,7 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
     }
 }
 
-func (r *userResource) getUserFromDb(ctx context.Context, db string, user string) (*dbUser, error) {
+func (r *userResource) getUserFromDb(ctx context.Context, db string, user string) (dbUser, error) {
   var usersInfo readResponse
   cmd := bson.D{{Key: "usersInfo", Value: bson.M{
       "user": user,
@@ -185,15 +194,15 @@ func (r *userResource) getUserFromDb(ctx context.Context, db string, user string
 
   err := r.client.Database(db).RunCommand(ctx, cmd).Decode(&usersInfo)
   if err != nil {
-    return nil, err
+    return dbUser{}, err
   }
 
   users := usersInfo.Users
   if len(users) == 0 {
-    return nil, errors.New("No users matched for db: " + db + " and user: " + user)
+    return dbUser{}, errors.New("No users matched for db: " + db + " and user: " + user)
   }
 
-  return &users[0], nil
+  return users[0], nil
 }
 
 func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -211,6 +220,7 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
         "Could not retrieve user <" + state.User.ValueString() + "> " + err.Error())
   }
 
+  state.Id = types.StringValue(user.Id)
   state.User = types.StringValue(user.User)
   state.Db = types.StringValue(user.Db)
 
@@ -230,7 +240,96 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 }
 
 func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+    var plan userResourceModel
+    diags := req.Plan.Get(ctx, &plan)
+    resp.Diagnostics.Append(diags...)
+    if resp.Diagnostics.HasError() {
+      return
+    }
+
+    var roles []bson.M
+    for _, role := range plan.Roles {
+      roles = append(roles, bson.M {"role": role.Role.ValueString(), "db": role.Db.ValueString()})
+    }
+    userUpdateCommand := bson.D {{"updateUser", plan.User.ValueString()}, {"pwd", plan.Password.ValueString()}, {"roles", roles}}
+
+    mongoResult := r.client.Database(plan.Db.ValueString()).RunCommand(ctx, userUpdateCommand)
+    if mongoResult.Err() != nil {
+      resp.Diagnostics.AddError(
+          "Error updating user",
+          "Could not update user, unexpected error: " + mongoResult.Err().Error(),
+      )
+      return
+    }
+
+    var response commandResponse
+    err := mongoResult.Decode(&response)
+    if err != nil {
+      resp.Diagnostics.AddError(
+        "Error updating user",
+        "Could not update user, unexpected error: " + err.Error(),
+      )
+
+      return
+    }
+
+    if response.OK != 1 {
+      resp.Diagnostics.AddError(
+        "Error updating user",
+        fmt.Sprintf("Could not update user, unexpected error returned from MongoDB: %d", response.OK))
+      return
+    }
+
+    // Read back user from DB to get ID
+    user, err := r.getUserFromDb(ctx, plan.Db.ValueString(), plan.User.ValueString())
+    if err != nil {
+      resp.Diagnostics.AddError(
+          "Error reading user from MongoDb",
+          "Could not retrieve user <" + plan.User.ValueString() + "> " + err.Error())
+    }
+
+    // Set state to fully populated data
+    plan.Id = types.StringValue(user.Id)
+    plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
+
+    diags = resp.State.Set(ctx, plan)
+    resp.Diagnostics.Append(diags...)
+    if resp.Diagnostics.HasError() {
+        return
+    }
 }
 
 func (r *userResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+  var state userResourceModel
+  diags := req.State.Get(ctx, &state)
+  resp.Diagnostics.Append(diags...)
+  if resp.Diagnostics.HasError() {
+    return
+  }
+
+  userDeleteCommand := bson.D {{"dropUser", state.User.ValueString()}}
+
+  mongoResult := r.client.Database(state.Db.ValueString()).RunCommand(ctx, userDeleteCommand)
+  if mongoResult.Err() != nil {
+    resp.Diagnostics.AddError(
+        "Error deleting user",
+        "Could not delete user, unexpected error: " + mongoResult.Err().Error(),
+    )
+    return
+  }
+}
+
+func (r *userResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+    idParts := strings.SplitN(req.ID, ".", 2)
+
+    if len (idParts) < 2 {
+      resp.Diagnostics.AddError(
+          "Unexpected import identifier",
+          fmt.Sprintf("Expected import identifier with format: <db>.<user>  Got: %q", req.ID),
+      )
+      return
+    }
+
+    resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("db"), idParts[0])...)
+    resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("user"), idParts[1])...)
 }
