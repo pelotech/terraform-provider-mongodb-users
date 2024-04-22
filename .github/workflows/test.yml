@@ -77,6 +77,9 @@ jobs:
           terraform_version: ${{ matrix.terraform }}
           terraform_wrapper: false
       - run: go mod download
+      - uses: hoverkraft-tech/compose-action@v0.0.0
+        with:
+          compose-file: "docker-compose/docker-compose.yml"
       - env:
           TF_ACC: "1"
         run: go test -v -cover ./internal/provider/
