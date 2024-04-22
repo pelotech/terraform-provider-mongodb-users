@@ -5,17 +5,17 @@ package provider
 
 import (
 	"context"
-  "os"
-  "time"
+	"os"
+	"time"
 
-  "go.mongodb.org/mongo-driver/mongo"
-  "go.mongodb.org/mongo-driver/mongo/options"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-  "github.com/hashicorp/terraform-plugin-framework/path"
-  "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var _ provider.Provider = &mongodbUsersProvider{}
@@ -28,11 +28,10 @@ type mongodbUsersProvider struct {
 }
 
 type mongodbUsersProviderModel struct {
-  Host types.String `tfsdk:"host"`
-  Username types.String `tfsdk:"username"`
-  Password types.String `tfsdk:"password"`
+	Host     types.String `tfsdk:"host"`
+	Username types.String `tfsdk:"username"`
+	Password types.String `tfsdk:"password"`
 }
-
 
 func (p *mongodbUsersProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "mongodb-users"
@@ -40,166 +39,161 @@ func (p *mongodbUsersProvider) Metadata(ctx context.Context, req provider.Metada
 }
 
 func (p *mongodbUsersProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
-  resp.Schema = schema.Schema{
-    Attributes: map[string]schema.Attribute{
-        "host": schema.StringAttribute{
-            Description: "Host and port for MongoDB, may also be provided with MONGODB_HOST environment variable",
-            Required: true,
-        },
-        "username": schema.StringAttribute{
-            Description: "Username for MongoDB connection, may also be provided with MONGODB_USERNAME environment variable",
-            Required: true,
-        },
-        "password": schema.StringAttribute{
-            Description: "Password for MongoDB connection, may also be provided with MONGODB_PASSWORD environment variable",
-            Required: true,
-            Sensitive: true,
-        },
-    },
-  }
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"host": schema.StringAttribute{
+				Description: "Host and port for MongoDB, may also be provided with MONGODB_HOST environment variable",
+				Required:    true,
+			},
+			"username": schema.StringAttribute{
+				Description: "Username for MongoDB connection, may also be provided with MONGODB_USERNAME environment variable",
+				Required:    true,
+			},
+			"password": schema.StringAttribute{
+				Description: "Password for MongoDB connection, may also be provided with MONGODB_PASSWORD environment variable",
+				Required:    true,
+				Sensitive:   true,
+			},
+		},
+	}
 }
 
 func (p *mongodbUsersProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-    // Retrieve provider data from configuration
-    var config mongodbUsersProviderModel
-    diags := req.Config.Get(ctx, &config)
-    resp.Diagnostics.Append(diags...)
-    if resp.Diagnostics.HasError() {
-        return
-    }
+	// Retrieve provider data from configuration
+	var config mongodbUsersProviderModel
+	diags := req.Config.Get(ctx, &config)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-    if config.Host.IsUnknown() {
-        resp.Diagnostics.AddAttributeError(
-            path.Root("host"),
-            "Unknown MongoDb API Host",
-            "The provider cannot create the MongoDb API client as there is an unknown configuration value for the MongoDb API host. "+
-                "Either target apply the source of the value first, set the value statically in the configuration, or use the MONGODB_HOST environment variable.",
-        )
-    }
+	if config.Host.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("host"),
+			"Unknown MongoDb API Host",
+			"The provider cannot create the MongoDb API client as there is an unknown configuration value for the MongoDb API host. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the MONGODB_HOST environment variable.",
+		)
+	}
 
-    if config.Username.IsUnknown() {
-        resp.Diagnostics.AddAttributeError(
-            path.Root("username"),
-            "Unknown MongoDb API Username",
-            "The provider cannot create the MongoDb API client as there is an unknown configuration value for the MongoDb API username. "+
-                "Either target apply the source of the value first, set the value statically in the configuration, or use the MONGODB_USERNAME environment variable.",
-        )
-    }
+	if config.Username.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("username"),
+			"Unknown MongoDb API Username",
+			"The provider cannot create the MongoDb API client as there is an unknown configuration value for the MongoDb API username. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the MONGODB_USERNAME environment variable.",
+		)
+	}
 
-    if config.Password.IsUnknown() {
-        resp.Diagnostics.AddAttributeError(
-            path.Root("password"),
-            "Unknown MongoDb API Password",
-            "The provider cannot create the MongoDb API client as there is an unknown configuration value for the MongoDb API password. "+
-                "Either target apply the source of the value first, set the value statically in the configuration, or use the MONGODB_PASSWORD environment variable.",
-        )
-    }
+	if config.Password.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("password"),
+			"Unknown MongoDb API Password",
+			"The provider cannot create the MongoDb API client as there is an unknown configuration value for the MongoDb API password. "+
+				"Either target apply the source of the value first, set the value statically in the configuration, or use the MONGODB_PASSWORD environment variable.",
+		)
+	}
 
-    if resp.Diagnostics.HasError() {
-        return
-    }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-    // Default values to environment variables, but override
-    // with Terraform configuration value if set.
+	// Default values to environment variables, but override
+	// with Terraform configuration value if set.
 
-    host := os.Getenv("MONGODB_HOST")
-    username := os.Getenv("MONGODB_USERNAME")
-    password := os.Getenv("MONGODB_PASSWORD")
+	host := os.Getenv("MONGODB_HOST")
+	username := os.Getenv("MONGODB_USERNAME")
+	password := os.Getenv("MONGODB_PASSWORD")
 
-    if !config.Host.IsNull() {
-        host = config.Host.ValueString()
-    }
+	if !config.Host.IsNull() {
+		host = config.Host.ValueString()
+	}
 
-    if !config.Username.IsNull() {
-        username = config.Username.ValueString()
-    }
+	if !config.Username.IsNull() {
+		username = config.Username.ValueString()
+	}
 
-    if !config.Password.IsNull() {
-        password = config.Password.ValueString()
-    }
+	if !config.Password.IsNull() {
+		password = config.Password.ValueString()
+	}
 
-    // If any of the expected configurations are missing, return
-    // errors with provider-specific guidance.
+	// If any of the expected configurations are missing, return
+	// errors with provider-specific guidance.
 
-    if host == "" {
-        resp.Diagnostics.AddAttributeError(
-            path.Root("host"),
-            "Missing MongoDb API Host",
-            "The provider cannot create the MongoDb API client as there is a missing or empty value for the MongoDb API host. "+
-                "Set the host value in the configuration or use the MONGODB_HOST environment variable. "+
-                "If either is already set, ensure the value is not empty.",
-        )
-    }
+	if host == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("host"),
+			"Missing MongoDb API Host",
+			"The provider cannot create the MongoDb API client as there is a missing or empty value for the MongoDb API host. "+
+				"Set the host value in the configuration or use the MONGODB_HOST environment variable. "+
+				"If either is already set, ensure the value is not empty.",
+		)
+	}
 
-    if username == "" {
-        resp.Diagnostics.AddAttributeError(
-            path.Root("username"),
-            "Missing MongoDb API Username",
-            "The provider cannot create the MongoDb API client as there is a missing or empty value for the MongoDb API username. "+
-                "Set the username value in the configuration or use the MONGODB_USERNAME environment variable. "+
-                "If either is already set, ensure the value is not empty.",
-        )
-    }
+	if username == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("username"),
+			"Missing MongoDb API Username",
+			"The provider cannot create the MongoDb API client as there is a missing or empty value for the MongoDb API username. "+
+				"Set the username value in the configuration or use the MONGODB_USERNAME environment variable. "+
+				"If either is already set, ensure the value is not empty.",
+		)
+	}
 
-    if password == "" {
-        resp.Diagnostics.AddAttributeError(
-            path.Root("password"),
-            "Missing MongoDb API Password",
-            "The provider cannot create the MongoDb API client as there is a missing or empty value for the MongoDb API password. "+
-                "Set the password value in the configuration or use the MONGODB_PASSWORD environment variable. "+
-                "If either is already set, ensure the value is not empty.",
-        )
-    }
+	if password == "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("password"),
+			"Missing MongoDb API Password",
+			"The provider cannot create the MongoDb API client as there is a missing or empty value for the MongoDb API password. "+
+				"Set the password value in the configuration or use the MONGODB_PASSWORD environment variable. "+
+				"If either is already set, ensure the value is not empty.",
+		)
+	}
 
-    if resp.Diagnostics.HasError() {
-        return
-    }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
+	mongoCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-    mongoCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+	credential := options.Credential{
+		AuthMechanism: "SCRAM-SHA-1",
+		Username:      username,
+		Password:      password,
+	}
 
-    credential := options.Credential{
-      AuthMechanism: "SCRAM-SHA-1",
-      Username: username,
-      Password: password,
-    }
+	//client, err := mongo.Connect(mongoCtx, options.Client().ApplyURI("mongodb://" + host).
+	client, _ := mongo.Connect(mongoCtx, options.Client().ApplyURI("mongodb://"+host).
+		SetAuth(credential))
 
-    //client, err := mongo.Connect(mongoCtx, options.Client().ApplyURI("mongodb://" + host).
-    client, _ := mongo.Connect(mongoCtx, options.Client().ApplyURI("mongodb://" + host).
-        SetAuth(credential))
+	//defer func() {
+	//if err = client.Disconnect(ctx); err != nil {
+	//panic(err)
+	//}
+	//}()
 
-    //defer func() {
-      //if err = client.Disconnect(ctx); err != nil {
-        //panic(err)
-      //}
-    //}()
-
-
-
-
-    // Make the MongoDb client available during DataSource and Resource
-    // type Configure methods.
-    resp.DataSourceData = client
-    resp.ResourceData = client
+	// Make the MongoDb client available during DataSource and Resource
+	// type Configure methods.
+	resp.DataSourceData = client
+	resp.ResourceData = client
 }
 
 func (p *mongodbUsersProvider) Resources(_ context.Context) []func() resource.Resource {
-    return []func() resource.Resource{
-        NewUserResource,
-    }
+	return []func() resource.Resource{
+		NewUserResource,
+	}
 }
 
 func (p *mongodbUsersProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-  return nil
+	return nil
 }
 
 // New is a helper function to simplify provider server and testing implementation.
 func New(version string) func() provider.Provider {
-    return func() provider.Provider {
-        return &mongodbUsersProvider{
-            version: version,
-        }
-    }
+	return func() provider.Provider {
+		return &mongodbUsersProvider{
+			version: version,
+		}
+	}
 }
-
