@@ -23,15 +23,3 @@ resource "mongodb-users_user" "junky" {
     }
   ]
 }
-
-resource "mongodb-users_user" "junky2" {
-  user = "junky2junk"
-  db = "test"
-  password = "abc123"
-  roles = [
-    {
-      db = "test"
-      role = "readWrite"
-    }
-  ]
-}

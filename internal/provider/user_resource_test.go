@@ -39,8 +39,10 @@ resource "mongodb-users_user" "test_1" {
       // ImportState testing
       {
         ResourceName:      "mongodb-users_user.test_1",
+
         ImportState:       true,
         ImportStateVerify: true,
+        ImportStateId: "test.test_1",
         // The last_updated attribute does not exist in the HashiCups
         // API, therefore there is no value for it during import.
         ImportStateVerifyIgnore: []string{"last_updated", "password"},
@@ -54,26 +56,31 @@ resource "mongodb-users_user" "test_1" {
   password = "test1"
   roles = [
     {
-      db = "t2"
+      db = "test"
+      role = "readWrite"
+    },
+    {
+      db = "test_other"
       role = "read"
     }
   ]
 }
 `,
         Check: resource.ComposeAggregateTestCheckFunc(
-          // Verify first order item updated
           resource.TestCheckResourceAttr("mongodb-users_user.test_1", "user", "test_1"),
           resource.TestCheckResourceAttr("mongodb-users_user.test_1", "db", "test"),
-          resource.TestCheckResourceAttr("mongodb-users_user.test_1", "roles.#", "1"),
-          resource.TestCheckResourceAttr("mongodb-users_user.test_1", "roles.0.db", "t2"),
-          resource.TestCheckResourceAttr("mongodb-users_user.test_1", "roles.0.role", "read"),
+          resource.TestCheckResourceAttr("mongodb-users_user.test_1", "roles.#", "2"),
+          resource.TestCheckResourceAttr("mongodb-users_user.test_1", "roles.0.db", "test"),
+          resource.TestCheckResourceAttr("mongodb-users_user.test_1", "roles.0.role", "readWrite"),
+          resource.TestCheckResourceAttr("mongodb-users_user.test_1", "roles.1.db", "test_other"),
+          resource.TestCheckResourceAttr("mongodb-users_user.test_1", "roles.1.role", "read"),
 
           // Verify dynamic values have any value set in the state.
           resource.TestCheckResourceAttrSet("mongodb-users_user.test_1", "id"),
           resource.TestCheckResourceAttrSet("mongodb-users_user.test_1", "last_updated"),
         ),
       },
-      // Delete testing automatically occurs in TestCase
+
     },
   })
 }

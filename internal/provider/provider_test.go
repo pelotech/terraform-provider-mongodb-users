@@ -13,7 +13,7 @@ import (
 const (
     providerConfig = `
 provider "mongodb-users" {
-    host = "http://localhost:19090"
+    host = "localhost:27017"
     username = "root"
     password = "password123"
 }

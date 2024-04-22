@@ -45,6 +45,7 @@ func main() {
 		// of this provider.
 		Address: "hashicorp.com/edu/mongodb-users",
 		Debug:   debug,
+    ProtocolVersion: 5,
 	}
 
 	err := providerserver.Serve(context.Background(), provider.New(version), opts)
