@@ -7,4 +7,4 @@ services:
     environment:
       MONGODB_PORT_NUMBER: '27017'
       MONGODB_ROOT_USER: 'root'
-      MONGODB_ROOT_PASSWORD: 'password'
+      MONGODB_ROOT_PASSWORD: 'password123'

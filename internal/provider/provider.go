@@ -158,7 +158,7 @@ func (p *mongodbUsersProvider) Configure(ctx context.Context, req provider.Confi
 	defer cancel()
 
 	credential := options.Credential{
-		AuthMechanism: "SCRAM-SHA-256",
+		AuthMechanism: "SCRAM-SHA-1",
 		Username:      username,
 		Password:      password,
 	}
