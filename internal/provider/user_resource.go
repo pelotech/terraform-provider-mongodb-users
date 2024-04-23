@@ -101,24 +101,21 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"db": schema.StringAttribute{
 				Description: "DB Where the user is registered",
 				Required:    true,
-        PlanModifiers: []planmodifier.String{
-          stringplanmodifier.RequiresReplace(),
-        },
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"user": schema.StringAttribute{
 				Description: "Name of user",
 				Required:    true,
-        PlanModifiers: []planmodifier.String{
-          stringplanmodifier.RequiresReplace(),
-        },
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"password": schema.StringAttribute{
 				Description: "Password of user, cannot be changed once set",
 				Required:    true,
 				Sensitive:   true,
-        PlanModifiers: []planmodifier.String{
-          stringplanmodifier.RequiresReplace(),
-        },
 			},
 			"roles": schema.SetAttribute{
 				ElementType: types.ObjectType{
@@ -157,7 +154,7 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if mongoResult.Err() != nil {
 		resp.Diagnostics.AddError(
 			"Error creating user at Mongo Level",
-			"Could not create user, unexpected error: " + mongoResult.Err().Error(),
+			"Could not create user, unexpected error: "+mongoResult.Err().Error(),
 		)
 		return
 	}
@@ -167,7 +164,7 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating user via Mongo Response Decode Problem",
-			"Could not create user, unexpected error: " + err.Error(),
+			"Could not create user, unexpected error: "+err.Error(),
 		)
 
 		return
