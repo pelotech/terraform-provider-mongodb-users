@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -99,15 +101,24 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"db": schema.StringAttribute{
 				Description: "DB Where the user is registered",
 				Required:    true,
+        PlanModifiers: []planmodifier.String{
+          stringplanmodifier.RequiresReplace(),
+        },
 			},
 			"user": schema.StringAttribute{
 				Description: "Name of user",
 				Required:    true,
+        PlanModifiers: []planmodifier.String{
+          stringplanmodifier.RequiresReplace(),
+        },
 			},
 			"password": schema.StringAttribute{
 				Description: "Password of user, cannot be changed once set",
 				Required:    true,
 				Sensitive:   true,
+        PlanModifiers: []planmodifier.String{
+          stringplanmodifier.RequiresReplace(),
+        },
 			},
 			"roles": schema.SetAttribute{
 				ElementType: types.ObjectType{
@@ -145,8 +156,8 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	mongoResult := r.client.Database(plan.Db.ValueString()).RunCommand(ctx, userCreateCommand)
 	if mongoResult.Err() != nil {
 		resp.Diagnostics.AddError(
-			"Error creating user",
-			"Could not create user, unexpected error: "+mongoResult.Err().Error(),
+			"Error creating user at Mongo Level",
+			"Could not create user, unexpected error: " + mongoResult.Err().Error(),
 		)
 		return
 	}
@@ -155,8 +166,8 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	err := mongoResult.Decode(&response)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating user",
-			"Could not create user, unexpected error: "+err.Error(),
+			"Error creating user via Mongo Response Decode Problem",
+			"Could not create user, unexpected error: " + err.Error(),
 		)
 
 		return
@@ -164,7 +175,7 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	if response.OK != 1 {
 		resp.Diagnostics.AddError(
-			"Error creating user",
+			"Error creating user via Mongo Response Code",
 			fmt.Sprintf("Could not create user, unexpected error returned from MongoDB: %d", response.OK))
 		return
 	}
