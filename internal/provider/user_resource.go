@@ -2,8 +2,8 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -202,7 +202,7 @@ func (r *userResource) getUserFromDb(ctx context.Context, db string, user string
 
 	users := usersInfo.Users
 	if len(users) == 0 {
-		return dbUser{}, errors.New("No users matched for db: " + db + " and user: " + user)
+		return dbUser{}, nil
 	}
 
 	return users[0], nil
@@ -221,6 +221,12 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		resp.Diagnostics.AddError(
 			"Error reading user from MongoDb",
 			"Could not retrieve user <"+state.User.ValueString()+"> "+err.Error())
+	}
+
+	// User not found, needs to be created
+	if reflect.DeepEqual(user, dbUser{}) {
+		resp.State.RemoveResource(ctx)
+		return
 	}
 
 	state.Id = types.StringValue(user.Id)
